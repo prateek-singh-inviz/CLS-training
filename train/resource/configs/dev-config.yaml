@@ -1,0 +1,14 @@
+ner_train_model:
+  string_max_len: 30
+  train_batch_size: 16
+  epochs: 3
+  source:
+    connection_type: "s3"
+    bucket_name: "tuldl-prod"
+    combined_train_data_path: "external/inviz_search_platform/dev/ml-kubeflow/ner/v4/data/ner_train_data_cs_gs.csv"
+    ner_train_tokenizer: "external/inviz_search_platform/dev/ml-kubeflow/ner/v4/albert/"
+  sink:
+    connection_type: "s3"
+    bucket_name: "tuldl-prod"
+    model_output_loc: "external/inviz_search_platform/dev/ml-kubeflow/ner/v4/model/"
+    reports_loc : "external/inviz_search_platform/dev/ml-kubeflow/ner/v4/reports/"
