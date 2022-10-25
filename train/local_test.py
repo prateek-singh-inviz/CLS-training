@@ -12,7 +12,7 @@ import boto3
 
 from src.config.logging import Formatter, InterceptHandler
 from src.config.parser import load_config
-from src.train.ner_train_model import NERTrainModelJob
+from src.train.cls_train_model import CLSTrainModelJob
 from src.utils.utility_functions import log_time
 
 load_dotenv()
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     config = load_config('ner_train_model')
     logger.info(' Starting job at {}'.format(start_time.strftime("%Y-%m-%d %H:%M:%S")))
 
-    job = NERTrainModelJob(args, config, s3_client)
+    job = CLSTrainModelJob(args, config, s3_client)
     job.train(args, config, s3_client)
 
     log_time(s_time)
