@@ -1,7 +1,5 @@
-ner_train_model:
-  string_max_len: 30
-  train_batch_size: 16
-  epochs: 3
+cls_train_model:
+  
   source:
     connection_type: "s3"
     bucket_name: "tuldl-prod"
