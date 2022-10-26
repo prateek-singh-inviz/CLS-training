@@ -11,13 +11,13 @@ from src.train.model.utils import *
 tqdm.pandas()
 
 
-class ner_train_config:
-    MAX_LEN = 30
+class cls_train_config:
+    MAX_LEN = 50
     TRAIN_BATCH_SIZE = 16
-    VALID_BATCH_SIZE = 8
-    EPOCHS = 3
+    VALID_BATCH_SIZE = 16
+    EPOCHS = 30
+    LEARNING_RATE = 1e-05
     BASE_MODEL_PATH = './albert/'
-    MODEL_PATH = "pytorch_model.bin"
 
 
 
@@ -145,76 +145,18 @@ class CLSTrainModelJob():
             file_path = os.path.join(config['source']['cls_train_tokenizer'], file_name)
             local_file_path = tokenizer_local_path + file_name
             s3_client.download_file(config['source']['bucket_name'], file_path, local_file_path)
-        #Need to change according to CLS files
     @staticmethod
     def upload_output_files(output_path, config, s3_client):
 
-        # # Upload reports
-        # report_files = ['ner_prediction_classification_report.csv', 'ner_prediction_multilabel_confusion_matrix.csv',
-        #                 'ner_prediction_difference.csv', 'ner_prediction_difference_batch.csv']
 
-        # for file in report_files:
-        #     s3_client.upload_file(output_path + file, config['sink']['bucket_name'],
-        #                           config['sink']['reports_loc'] + os.path.basename(file))
-
-        # Upload encoder, tokenizer and model files
         files = ["tokenizer.bin", "cls_albert_model.bin"]
 
         for file in files:
             s3_client.upload_file(output_path + file, config['sink']['bucket_name'],
                                   config['sink']['model_output_loc'] + os.path.basename(file))
 
-    def generate_model_matrix(self, model, tokenizer, device, enc_tag, input_path, output_path):
 
-        logger.info('Predicting attributes by ner model ')
-        df = pd.read_csv(input_path + 'ner_train_data_cs_gs.csv', sep='\t')
-        df = df.dropna()
-        df = df.groupby('query').agg({'word': list, 'label': list}).reset_index()
-        df = df.sample(frac=0.15)
-        df = df[:10_000].reset_index(drop=True)
 
-        df['ner_prediction'] = df.progress_apply(
-            lambda x: predict(model=model, tokenizer=tokenizer, text=x['word'], device=device, enc_tag=enc_tag),
-            axis=1)
-
-        df = batch_predict(model=model, tokenizer=tokenizer, qdf=df, device=device, enc_tag=enc_tag, batch_size=16)
-        logger.info('Predicting attributes successful')
-
-        attr_list = list(enc_tag.classes_)
-
-        df_pred = pd.DataFrame()
-        df_true = pd.DataFrame()
-        for label in attr_list:
-            df_pred[label] = [1 if label in i else 0 for i in df['ner_prediction']]
-            df_true[label] = [1 if label in i else 0 for i in df['label']]
-
-        mcm = multilabel_confusion_matrix(np.array(df_true), np.array(df_pred))
-        mcm = mcm.flatten().reshape(len(attr_list), 4)
-        mcm = pd.DataFrame(data=mcm, columns=['TN', 'FP', 'FN', 'TP'], index=attr_list)
-        mult_conf_matrix_file = f'{output_path}ner_prediction_multilabel_confusion_matrix.csv'
-        mcm.to_csv(mult_conf_matrix_file)
-        logger.info('Multilabel Confusion Matrix saved')
-
-        cl_rep = classification_report(np.array(df_true), np.array(df_pred), target_names=attr_list, output_dict=True)
-        cl_rep = pd.DataFrame.from_dict(cl_rep).transpose()
-        cl_rep_file = f'{output_path}ner_prediction_classification_report.csv'
-        cl_rep.to_csv(cl_rep_file)
-        logger.info('Classification report saved')
-
-        compare_list = [(query, word, i, j) for query, word, i, j in
-                        zip(df['query'], df['word'], df['label'], df['ner_prediction']) if i != j]
-        compare_frame = pd.DataFrame(data=compare_list, columns=['query', 'word', 'label', 'ner_prediction'])
-        comp_list_file = f'{output_path}ner_prediction_difference.csv'
-        compare_frame.to_csv(comp_list_file, index=False)
-
-        compare_list_batch = [(query, word, i, j) for query, word, i, j in
-                              zip(df['query'], df['word'], df['label'], df['ner_prediction_batch']) if i != j]
-        compare_frame_batch = pd.DataFrame(data=compare_list_batch,
-                                           columns=['query', 'word', 'label', 'ner_prediction_batch'])
-        comp_list_file_batch = f'{output_path}ner_prediction_difference_batch.csv'
-        compare_frame_batch.to_csv(comp_list_file_batch, index=False)
-
-        logger.info('Difference in true and predicted attributes saved')
 
     def train(model,tokenizer,training_loader,epochs,epoch_start,save_path,load_checkpoint=True):
         joblib.dump(tokenizer,save_path+'/tokenizer.bin')
