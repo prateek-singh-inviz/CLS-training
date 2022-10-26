@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     PARSER = argparse.ArgumentParser(description='Run a PySpark job')
     PARSER.add_argument('--JOB_NAME', type=str, required=False, dest="JOB_NAME",
-                        default=os.environ.get("JOB_NAME", "ner_train_dataprep"),
+                        default=os.environ.get("JOB_NAME", "cls_train_dataprep"),
                         help="The name of the job module you want to run. (ex: poc will run job on jobs.poc package)")
 
     args = PARSER.parse_args().__dict__
