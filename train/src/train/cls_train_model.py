@@ -55,8 +55,7 @@ def loss_fn(o, t):
         
     return torch.nn.BCEWithLogitsLoss()(o, t)
 
-optimizer = torch.optim.Adam(params =  model.parameters(), lr=LEARNING_RATE)
-scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,12,15,18,20,22,23,24,26,30], gamma=0.8)
+
 
 
 from sklearn.metrics import recall_score,precision_score,f1_score,accuracy_score
@@ -168,7 +167,8 @@ class CLSTrainModelJob():
         y4 = mlb4.transform(train_data['level4'])
         tokenizer = joblib.load(save_path+'/tokenizer.bin') ##while continue training
         x=list(train_data.text)
-
+        optimizer = torch.optim.Adam(params =  model.parameters(), lr=LEARNING_RATE)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,12,15,18,20,22,23,24,26,30], gamma=0.8)
         MAX_LEN = 50
         TRAIN_BATCH_SIZE = 16
         VALID_BATCH_SIZE = 16
@@ -179,6 +179,9 @@ class CLSTrainModelJob():
         epoch_repo= {}
         m_=[]
         # !mkdir save_path
+        tokenizer_local_path = "./albert/"
+        input_path = "./input/"
+        output_path = "./output/"
         training_set = CustomDataset(x,y4, tokenizer, MAX_LEN)
         train_params = {'batch_size': TRAIN_BATCH_SIZE,
                 'shuffle': True,
@@ -194,9 +197,9 @@ class CLSTrainModelJob():
 
         if load_checkpoint:
             try:
-                epoch_ = joblib.load(save_path+'/epoch.int')
-                _id = joblib.load(save_path+'/id.int')
-                model = joblib.load(save_path+'/model.bin')
+                epoch_ = joblib.load(output_path+'/epoch.int')
+                _id = joblib.load(output_path+'/id.int')
+                model = joblib.load(output_path+'/model.bin')
             except:
                 logger.info('Initiating training from start') 
         logger.info('CLS Model Training Started')        
@@ -226,22 +229,22 @@ class CLSTrainModelJob():
                     outputs = (np.array(outputs.cpu().detach().numpy()) > 0.5)*1
     #                 print(outputs)
                     targets4 = targets4.cpu().detach().numpy()
-                    accuracy = metrics.accuracy_score(targets4, outputs)
+                    accuracy = metrics_.accuracy_score(targets4, outputs)
                     if max(accuracy_l) < accuracy:
-                        torch.save(model,save_path+'/model_best.bin')
+                        torch.save(model,output_path+'/model_best.bin')
                     print('\naccuracy = ',accuracy)
                     accuracy_l.append(accuracy)
                     m_.append(metrics_(targets4,outputs))
                     epoch_repo[epoch] = {'loss':loss_l,'accuracy':accuracy_l,'metrics':m_}
-                    joblib.dump(epoch_repo,save_path+'/reports.dict')                
-                    torch.save(model,save_path+'/model.bin')
+                    joblib.dump(epoch_repo,output_path+'/reports.dict')                
+                    torch.save(model,output_path+'/model.bin')
                 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
             logger.info('CLS Model Training Successful ')
   
-            torch.save(model,'/media/HDD/aditya/model_files/'+'cls_albert_model'+'.bin')
-        self.upload_output_files(output_path, config, s3_client)
+            torch.save(model,output_path+'cls_albert_model'+'.bin')
+        self.upload_output_files(output_path, self.config, self.s3_client)
         logger.info('Uploading Model Data Done!')
         return model
